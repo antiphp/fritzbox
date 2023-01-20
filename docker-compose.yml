@@ -1,0 +1,46 @@
+services:
+  fritz-exporter:
+    image: pdreker/fritz_exporter:2.2
+    environment:
+      FRITZ_HOSTNAME: ${FRITZ_HOST}
+      FRITZ_USERNAME: ${FRITZ_USER}
+      FRITZ_PASSWORD: ${FRITZ_PASS}
+    ports:
+      - "9787:9787"
+    networks:
+      - prom-fritz
+
+  prometheus:
+    image: prom/prometheus:v2.41.0
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - fritz-exporter
+    networks:
+      - prom-grafana
+      - prom-fritz
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.3.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASS}
+    volumes:
+      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/default.yml
+      - ./grafana-db.yml:/etc/grafana/provisioning/dashboards/main.yml
+      - ./grafana-db-fritz.json:/var/lib/grafana/dashboards/fritz.json
+    ports:
+      - 3000:3000
+    depends_on:
+      - prometheus
+    networks:
+      - prom-grafana
+
+networks:
+  prom-grafana:
+  prom-fritz:
